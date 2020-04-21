@@ -158,6 +158,11 @@ func (m *MockClient) CheckTx(tx *types.Transaction) error {
 	return args.Error(0)
 }
 
+func (m *MockClient) Vote(pollAddr ethcommon.Address, choiceID *big.Int) error {
+	args := m.Called()
+	return args.Error(0)
+}
+
 type StubClient struct {
 	SubLogsCh                    chan types.Log
 	TranscoderAddress            common.Address
@@ -335,3 +340,6 @@ func (c *StubClient) SetGasInfo(uint64, *big.Int) error { return nil }
 
 // Faucet
 func (c *StubClient) NextValidRequest(common.Address) (*big.Int, error) { return nil, nil }
+
+// Governance
+func (c *StubClient) Vote(pollAddr ethcommon.Address, choiceID *big.Int) error { return c.Err }
