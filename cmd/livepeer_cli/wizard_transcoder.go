@@ -4,14 +4,23 @@ import (
 	"fmt"
 	"math/big"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
+	"text/tabwriter"
 
+	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/golang/glog"
 	lpcommon "github.com/livepeer/go-livepeer/common"
 )
 
 const defaultRPCPort = "8935"
+
+var voteOptions = map[int]string{
+	0: "Yes",
+	1: "No",
+	2: "Abstain",
+}
 
 func (w *wizard) isOrchestrator() bool {
 	isT := httpGet(fmt.Sprintf("http://%v:%v/IsOrchestrator", w.host, w.httpPort))
@@ -184,4 +193,69 @@ func (w *wizard) callReward() {
 
 	fmt.Printf("Calling reward for round %v\n", c)
 	httpGet(fmt.Sprintf("http://%v:%v/reward", w.host, w.httpPort))
+}
+
+func (w *wizard) vote() {
+	if w.offchain {
+		glog.Error("Can not vote in 'offchain' mode")
+		return
+	}
+
+	fmt.Print("Enter the contract address for the poll you want to vote on")
+	poll := w.readStringAndValidate(func(in string) (string, error) {
+		if !ethcommon.IsHexAddress(in) {
+			return "", fmt.Errorf("invalid hex address address=%v", in)
+		}
+		return in, nil
+	})
+
+	var (
+		confirm = "n"
+		choice  = 99
+	)
+
+	for confirm == "n" {
+		choice = 99
+		opts := w.showVoteOptions()
+		if opts == nil {
+			return
+		}
+
+		for _, ok := voteOptions[choice]; !ok; {
+			fmt.Printf("Enter the ID of the option you want to vote for")
+			choice = w.readInt()
+			if _, ok := voteOptions[choice]; ok {
+				break
+			}
+			fmt.Println("Must enter a valid ID")
+		}
+
+		fmt.Printf("Are you sure you want to vote \"%v\" ? (y/n)", voteOptions[choice])
+		confirm = w.readStringYesOrNo()
+	}
+
+	data := url.Values{
+		"poll":     {poll},
+		"choiceID": {fmt.Sprintf("%v", choice)},
+	}
+
+	result := httpPostWithParams(fmt.Sprintf("http://%v:%v/vote", w.host, w.httpPort), data)
+
+	fmt.Printf("\n %v \n", result)
+}
+
+func (w *wizard) showVoteOptions() map[int]string {
+	opts := make([]string, 3)
+	for i, opt := range voteOptions {
+		opts[i] = opt
+	}
+	wtr := tabwriter.NewWriter(os.Stdout, 0, 8, 1, '\t', 0)
+	fmt.Fprintln(wtr, "Identifier\tVoting Options")
+	for idx, opt := range opts {
+		fmt.Fprintf(wtr, "%v\t%v\n", idx, opt)
+	}
+
+	wtr.Flush()
+
+	return voteOptions
 }
