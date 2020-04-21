@@ -685,6 +685,43 @@ func TestSignMessageHandler(t *testing.T) {
 	assert.Equal([]byte(msg), body)
 }
 
+func TestVoteHandler(t *testing.T) {
+	assert := assert.New(t)
+
+	// Test missing client
+	handler := voteHandler(nil)
+	resp := httpPostFormResp(handler, nil)
+	defer resp.Body.Close()
+	body, _ := ioutil.ReadAll(resp.Body)
+
+	assert.Equal(http.StatusInternalServerError, resp.StatusCode)
+	assert.Equal("missing ETH client", strings.TrimSpace(string(body)))
+
+	// Test Vote() error
+	err := errors.New("voting error")
+	client := &eth.StubClient{Err: err}
+	handler = voteHandler(client)
+	resp = httpPostFormResp(handler, nil)
+	defer resp.Body.Close()
+	body, _ = ioutil.ReadAll(resp.Body)
+
+	assert.Equal(http.StatusInternalServerError, resp.StatusCode)
+	assert.Equal(fmt.Sprintf("unable to submit vote transaction err=%v", err), strings.TrimSpace(string(body)))
+
+	// Test Vote() success
+	client.Err = nil
+	form := url.Values{
+		"poll":     {"foo"},
+		"choiceID": {"0"},
+	}
+	handler = voteHandler(client)
+	resp = httpPostFormResp(handler, strings.NewReader(form.Encode()))
+	defer resp.Body.Close()
+	body, _ = ioutil.ReadAll(resp.Body)
+	assert.Equal(http.StatusOK, resp.StatusCode)
+	assert.Equal([]byte("success"), body)
+}
+
 func httpPostFormResp(handler http.Handler, body io.Reader) *http.Response {
 	headers := map[string]string{
 		"Content-Type": "application/x-www-form-urlencoded",

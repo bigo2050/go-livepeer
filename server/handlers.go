@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"net/http"
 
+	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/golang/glog"
 	"github.com/livepeer/go-livepeer/common"
 	"github.com/livepeer/go-livepeer/eth"
@@ -307,5 +308,29 @@ func signMessageHandler(client eth.LivepeerEthClient) http.Handler {
 
 		w.WriteHeader(http.StatusOK)
 		w.Write(signed)
+	})
+}
+
+func voteHandler(client eth.LivepeerEthClient) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if client == nil {
+			respondWith500(w, "missing ETH client")
+			return
+		}
+
+		poll := r.FormValue("poll")
+		choiceID, _ := new(big.Int).SetString(r.FormValue("choiceID"), 10)
+
+		// submit tx
+		if err := client.Vote(
+			ethcommon.HexToAddress(poll),
+			choiceID,
+		); err != nil {
+			respondWith500(w, fmt.Sprintf("unable to submit vote transaction err=%v", err))
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("success"))
 	})
 }
