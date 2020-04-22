@@ -10,6 +10,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/livepeer/go-livepeer/common"
 	"github.com/livepeer/go-livepeer/eth"
+	"github.com/livepeer/go-livepeer/eth/types"
 	"github.com/livepeer/go-livepeer/pm"
 )
 
@@ -319,7 +320,27 @@ func voteHandler(client eth.LivepeerEthClient) http.Handler {
 		}
 
 		poll := r.FormValue("poll")
-		choiceID, _ := new(big.Int).SetString(r.FormValue("choiceID"), 10)
+		if poll == "" {
+			respondWith500(w, "missing poll contract address")
+			return
+		}
+		if !ethcommon.IsHexAddress(poll) {
+			respondWith500(w, "invalid poll contract address")
+			return
+		}
+
+		choiceStr := r.FormValue("choiceID")
+		if choiceStr == "" {
+			respondWith500(w, "missing choiceID")
+			return
+		}
+
+		choiceID, _ := new(big.Int).SetString(choiceStr, 10)
+		fmt.Println(choiceID)
+		if ok := types.VoteChoice(int(choiceID.Int64())).IsValid(); !ok {
+			respondWith500(w, "invalid choiceID")
+			return
+		}
 
 		// submit tx
 		if err := client.Vote(
@@ -331,6 +352,6 @@ func voteHandler(client eth.LivepeerEthClient) http.Handler {
 		}
 
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("success"))
+		w.Write([]byte("vote success"))
 	})
 }

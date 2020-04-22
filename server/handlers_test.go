@@ -688,6 +688,8 @@ func TestSignMessageHandler(t *testing.T) {
 func TestVoteHandler(t *testing.T) {
 	assert := assert.New(t)
 
+	client := &eth.StubClient{}
+
 	// Test missing client
 	handler := voteHandler(nil)
 	resp := httpPostFormResp(handler, nil)
@@ -697,21 +699,74 @@ func TestVoteHandler(t *testing.T) {
 	assert.Equal(http.StatusInternalServerError, resp.StatusCode)
 	assert.Equal("missing ETH client", strings.TrimSpace(string(body)))
 
-	// Test Vote() error
-	err := errors.New("voting error")
-	client := &eth.StubClient{Err: err}
+	// Test missing form params - poll
+	form := url.Values{
+		"choiceID": {"0"},
+	}
 	handler = voteHandler(client)
-	resp = httpPostFormResp(handler, nil)
+	resp = httpPostFormResp(handler, strings.NewReader(form.Encode()))
+	defer resp.Body.Close()
+	body, _ = ioutil.ReadAll(resp.Body)
+
+	assert.Equal(http.StatusInternalServerError, resp.StatusCode)
+	assert.Equal("missing poll contract address", strings.TrimSpace(string(body)))
+
+	// Test invalid poll address
+	form = url.Values{
+		"poll":     {"foo"},
+		"choiceID": {"-1"},
+	}
+	handler = voteHandler(client)
+	resp = httpPostFormResp(handler, strings.NewReader(form.Encode()))
+	defer resp.Body.Close()
+	body, _ = ioutil.ReadAll(resp.Body)
+
+	assert.Equal(http.StatusInternalServerError, resp.StatusCode)
+	assert.Equal("invalid poll contract address", strings.TrimSpace(string(body)))
+
+	// Test missing form params - choiceID
+	form = url.Values{
+		"poll": {"0xbf790e51fa21e1515cece96975b3505350b20083"},
+	}
+	handler = voteHandler(client)
+	resp = httpPostFormResp(handler, strings.NewReader(form.Encode()))
+	defer resp.Body.Close()
+	body, _ = ioutil.ReadAll(resp.Body)
+
+	assert.Equal(http.StatusInternalServerError, resp.StatusCode)
+	assert.Equal("missing choiceID", strings.TrimSpace(string(body)))
+
+	// Test invalid choiceID
+	form = url.Values{
+		"poll":     {"0xbf790e51fa21e1515cece96975b3505350b20083"},
+		"choiceID": {"-1"},
+	}
+	handler = voteHandler(client)
+	resp = httpPostFormResp(handler, strings.NewReader(form.Encode()))
+	defer resp.Body.Close()
+	body, _ = ioutil.ReadAll(resp.Body)
+	assert.Equal(http.StatusInternalServerError, resp.StatusCode)
+	assert.Equal("invalid choiceID", strings.TrimSpace(string(body)))
+
+	// Test Vote() error
+	form = url.Values{
+		"poll":     {"0xbf790e51fa21e1515cece96975b3505350b20083"},
+		"choiceID": {"1"},
+	}
+	err := errors.New("voting error")
+	client.Err = err
+	handler = voteHandler(client)
+	resp = httpPostFormResp(handler, strings.NewReader(form.Encode()))
 	defer resp.Body.Close()
 	body, _ = ioutil.ReadAll(resp.Body)
 
 	assert.Equal(http.StatusInternalServerError, resp.StatusCode)
 	assert.Equal(fmt.Sprintf("unable to submit vote transaction err=%v", err), strings.TrimSpace(string(body)))
+	client.Err = nil
 
 	// Test Vote() success
-	client.Err = nil
-	form := url.Values{
-		"poll":     {"foo"},
+	form = url.Values{
+		"poll":     {"0xbf790e51fa21e1515cece96975b3505350b20083"},
 		"choiceID": {"0"},
 	}
 	handler = voteHandler(client)
@@ -719,7 +774,7 @@ func TestVoteHandler(t *testing.T) {
 	defer resp.Body.Close()
 	body, _ = ioutil.ReadAll(resp.Body)
 	assert.Equal(http.StatusOK, resp.StatusCode)
-	assert.Equal([]byte("success"), body)
+	assert.Equal([]byte("vote success"), body)
 }
 
 func httpPostFormResp(handler http.Handler, body io.Reader) *http.Response {
