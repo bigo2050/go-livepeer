@@ -98,3 +98,33 @@ type ProtocolParameters struct {
 	TotalSupply                   *big.Int
 	Paused                        bool
 }
+
+type VoteChoice int
+
+const (
+	Yes VoteChoice = iota
+	No
+	Abstain
+)
+
+var VoteChoices = []VoteChoice{Yes, No, Abstain}
+
+func (v VoteChoice) String() string {
+	switch v {
+	case Yes:
+		return "Yes"
+	case No:
+		return "No"
+	case Abstain:
+		return "Abstain"
+	default:
+		return ""
+	}
+}
+
+func (v VoteChoice) IsValid() bool {
+	if v != Yes && v != No && v != Abstain {
+		return false
+	}
+	return true
+}
