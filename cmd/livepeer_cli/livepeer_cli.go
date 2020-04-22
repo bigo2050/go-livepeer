@@ -108,7 +108,7 @@ func (w *wizard) initializeOptions() []wizardOpt {
 			w.read()
 		}, testnet: true},
 		{desc: "Sign a message", invoke: w.signMessage},
-		{desc: "Vote on a poll", invoke: w.vote, orchestrator: true},
+		{desc: "Vote in a poll", invoke: w.vote, orchestrator: true},
 	}
 	return options
 }

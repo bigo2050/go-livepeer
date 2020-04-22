@@ -12,15 +12,10 @@ import (
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/golang/glog"
 	lpcommon "github.com/livepeer/go-livepeer/common"
+	"github.com/livepeer/go-livepeer/eth/types"
 )
 
 const defaultRPCPort = "8935"
-
-var voteOptions = map[int]string{
-	0: "Yes",
-	1: "No",
-	2: "Abstain",
-}
 
 func (w *wizard) isOrchestrator() bool {
 	isT := httpGet(fmt.Sprintf("http://%v:%v/IsOrchestrator", w.host, w.httpPort))
@@ -201,7 +196,7 @@ func (w *wizard) vote() {
 		return
 	}
 
-	fmt.Print("Enter the contract address for the poll you want to vote on")
+	fmt.Print("Enter the contract address for the poll you want to vote in")
 	poll := w.readStringAndValidate(func(in string) (string, error) {
 		if !ethcommon.IsHexAddress(in) {
 			return "", fmt.Errorf("invalid hex address address=%v", in)
@@ -211,51 +206,52 @@ func (w *wizard) vote() {
 
 	var (
 		confirm = "n"
-		choice  = 99
+		choice  = types.VoteChoice(-1)
 	)
 
 	for confirm == "n" {
-		choice = 99
-		opts := w.showVoteOptions()
-		if opts == nil {
+		choice = types.VoteChoice(-1)
+		choices := w.showVoteChoices()
+		if choices == nil {
 			return
 		}
 
-		for _, ok := voteOptions[choice]; !ok; {
+		for ok := choice.IsValid(); !ok; {
 			fmt.Printf("Enter the ID of the option you want to vote for")
-			choice = w.readInt()
-			if _, ok := voteOptions[choice]; ok {
+			choice = types.VoteChoice(w.readInt())
+			if ok := choice.IsValid(); ok {
 				break
 			}
 			fmt.Println("Must enter a valid ID")
 		}
 
-		fmt.Printf("Are you sure you want to vote \"%v\" ? (y/n)", voteOptions[choice])
+		fmt.Printf("Are you sure you want to vote \"%v\" ? (y/n)", choice.String())
 		confirm = w.readStringYesOrNo()
 	}
 
 	data := url.Values{
 		"poll":     {poll},
-		"choiceID": {fmt.Sprintf("%v", choice)},
+		"choiceID": {fmt.Sprintf("%v", int(choice))},
 	}
+
+	fmt.Println(data)
 
 	result := httpPostWithParams(fmt.Sprintf("http://%v:%v/vote", w.host, w.httpPort), data)
 
 	fmt.Printf("\n %v \n", result)
 }
 
-func (w *wizard) showVoteOptions() map[int]string {
-	opts := make([]string, 3)
-	for i, opt := range voteOptions {
-		opts[i] = opt
-	}
+func (w *wizard) showVoteChoices() map[int]string {
+	choices := make(map[int]string)
+
 	wtr := tabwriter.NewWriter(os.Stdout, 0, 8, 1, '\t', 0)
 	fmt.Fprintln(wtr, "Identifier\tVoting Options")
-	for idx, opt := range opts {
-		fmt.Fprintf(wtr, "%v\t%v\n", idx, opt)
+	for idx, choice := range types.VoteChoices {
+		fmt.Fprintf(wtr, "%v\t%v\n", idx, choice.String())
+		choices[idx] = choice.String()
 	}
 
 	wtr.Flush()
 
-	return voteOptions
+	return choices
 }
