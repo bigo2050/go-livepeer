@@ -196,7 +196,7 @@ func (w *wizard) vote() {
 		return
 	}
 
-	fmt.Print("Enter the contract address for the poll you want to vote in")
+	fmt.Print("Enter the contract address for the poll you want to vote in -")
 	poll := w.readStringAndValidate(func(in string) (string, error) {
 		if !ethcommon.IsHexAddress(in) {
 			return "", fmt.Errorf("invalid hex address address=%v", in)
@@ -211,13 +211,10 @@ func (w *wizard) vote() {
 
 	for confirm == "n" {
 		choice = types.VoteChoice(-1)
-		choices := w.showVoteChoices()
-		if choices == nil {
-			return
-		}
+		w.showVoteChoices()
 
-		for ok := choice.IsValid(); !ok; {
-			fmt.Printf("Enter the ID of the option you want to vote for")
+		for {
+			fmt.Printf("Enter the ID of the choice you want to vote for -")
 			choice = types.VoteChoice(w.readInt())
 			if ok := choice.IsValid(); ok {
 				break
@@ -225,7 +222,7 @@ func (w *wizard) vote() {
 			fmt.Println("Must enter a valid ID")
 		}
 
-		fmt.Printf("Are you sure you want to vote \"%v\" ? (y/n)", choice.String())
+		fmt.Printf("Are you sure you want to vote \"%v\"? (y/n) -", choice.String())
 		confirm = w.readStringYesOrNo()
 	}
 
@@ -234,24 +231,16 @@ func (w *wizard) vote() {
 		"choiceID": {fmt.Sprintf("%v", int(choice))},
 	}
 
-	fmt.Println(data)
-
 	result := httpPostWithParams(fmt.Sprintf("http://%v:%v/vote", w.host, w.httpPort), data)
 
 	fmt.Printf("\n %v \n", result)
 }
 
-func (w *wizard) showVoteChoices() map[int]string {
-	choices := make(map[int]string)
-
+func (w *wizard) showVoteChoices() {
 	wtr := tabwriter.NewWriter(os.Stdout, 0, 8, 1, '\t', 0)
-	fmt.Fprintln(wtr, "Identifier\tVoting Options")
-	for idx, choice := range types.VoteChoices {
-		fmt.Fprintf(wtr, "%v\t%v\n", idx, choice.String())
-		choices[idx] = choice.String()
+	fmt.Fprintln(wtr, "Identifier\tVoting Choices")
+	for _, choice := range types.VoteChoices {
+		fmt.Fprintf(wtr, "%v\t%v\n", int(choice), choice.String())
 	}
-
 	wtr.Flush()
-
-	return choices
 }
