@@ -104,10 +104,9 @@ type VoteChoice int
 const (
 	Yes VoteChoice = iota
 	No
-	Abstain
 )
 
-var VoteChoices = []VoteChoice{Yes, No, Abstain}
+var VoteChoices = []VoteChoice{Yes, No}
 
 func (v VoteChoice) String() string {
 	switch v {
@@ -115,15 +114,13 @@ func (v VoteChoice) String() string {
 		return "Yes"
 	case No:
 		return "No"
-	case Abstain:
-		return "Abstain"
 	default:
 		return ""
 	}
 }
 
 func (v VoteChoice) IsValid() bool {
-	if v != Yes && v != No && v != Abstain {
+	if v != Yes && v != No {
 		return false
 	}
 	return true
