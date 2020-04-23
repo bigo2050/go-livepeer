@@ -120,8 +120,5 @@ func (v VoteChoice) String() string {
 }
 
 func (v VoteChoice) IsValid() bool {
-	if v != Yes && v != No {
-		return false
-	}
-	return true
+	return v == Yes || v == No
 }

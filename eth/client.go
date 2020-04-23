@@ -108,7 +108,7 @@ type LivepeerEthClient interface {
 	Paused() (bool, error)
 
 	// Governance
-	Vote(ethcommon.Address, *big.Int) error
+	Vote(ethcommon.Address, *big.Int) (*types.Transaction, error)
 
 	// Helpers
 	ContractAddresses() map[string]ethcommon.Address
@@ -723,24 +723,19 @@ func (c *client) TranscoderPool() ([]*lpTypes.Transcoder, error) {
 	return transcoders, nil
 }
 
-func (c *client) Vote(pollAddr ethcommon.Address, choiceID *big.Int) error {
+func (c *client) Vote(pollAddr ethcommon.Address, choiceID *big.Int) (*types.Transaction, error) {
 	poll, err := contracts.NewPoll(pollAddr, c.backend)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	gl, gp := c.GetGasInfo()
 	opts, err := c.accountManager.CreateTransactOpts(gl, gp)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	tx, err := poll.Vote(opts, choiceID)
-	if err != nil {
-		return err
-	}
-
-	return c.CheckTx(tx)
+	return poll.Vote(opts, choiceID)
 }
 
 // Helpers
