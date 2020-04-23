@@ -335,19 +335,28 @@ func voteHandler(client eth.LivepeerEthClient) http.Handler {
 			return
 		}
 
-		choiceID, _ := new(big.Int).SetString(choiceStr, 10)
-		fmt.Println(choiceID)
-		if ok := types.VoteChoice(int(choiceID.Int64())).IsValid(); !ok {
+		choiceID, ok := new(big.Int).SetString(choiceStr, 10)
+		if !ok {
+			respondWith500(w, "choiceID is not a valid integer value")
+			return
+		}
+		if !types.VoteChoice(int(choiceID.Int64())).IsValid() {
 			respondWith500(w, "invalid choiceID")
 			return
 		}
 
 		// submit tx
-		if err := client.Vote(
+		tx, err := client.Vote(
 			ethcommon.HexToAddress(poll),
 			choiceID,
-		); err != nil {
+		)
+		if err != nil {
 			respondWith500(w, fmt.Sprintf("unable to submit vote transaction err=%v", err))
+			return
+		}
+
+		if err := client.CheckTx(tx); err != nil {
+			respondWith500(w, fmt.Sprintf("unable to mine vote transaction err=%v", err))
 			return
 		}
 

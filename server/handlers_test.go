@@ -736,6 +736,18 @@ func TestVoteHandler(t *testing.T) {
 	assert.Equal(http.StatusInternalServerError, resp.StatusCode)
 	assert.Equal("missing choiceID", strings.TrimSpace(string(body)))
 
+	// Test choiceID invalid integer
+	form = url.Values{
+		"poll":     {"0xbf790e51fa21e1515cece96975b3505350b20083"},
+		"choiceID": {"foo"},
+	}
+	handler = voteHandler(client)
+	resp = httpPostFormResp(handler, strings.NewReader(form.Encode()))
+	defer resp.Body.Close()
+	body, _ = ioutil.ReadAll(resp.Body)
+	assert.Equal(http.StatusInternalServerError, resp.StatusCode)
+	assert.Equal("choiceID is not a valid integer value", strings.TrimSpace(string(body)))
+
 	// Test invalid choiceID
 	form = url.Values{
 		"poll":     {"0xbf790e51fa21e1515cece96975b3505350b20083"},
